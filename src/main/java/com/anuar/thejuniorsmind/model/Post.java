@@ -2,20 +2,19 @@ package com.anuar.thejuniorsmind.model;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "users")
+@Table(name = "posts")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class User {
+public class Post {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,29 +22,23 @@ public class User {
     @EqualsAndHashCode.Include
     private Long id;
 
-    @Column(name = "username", nullable = false, length = 50, unique = true)
-    @NotBlank(message = "Username cannot be blank")
-    @Size(max = 50)
-    private String username;
-
-
-    @Column(nullable = false, unique = true, length = 50)
+    @Column(nullable = false)
     @NotBlank
-    @Size(max = 50)
-    private String email;
+    private String title;
 
     @Column(nullable = false)
     @NotBlank
-    private String password;
-
-    @Column(length = 255)
-    private String avatarUrl;
-
-    @Column(length = 255)
-    private String bio;
+    private String content;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @CreationTimestamp
+    @Column(name = "updated_at", nullable = false, updatable = false)
+    private LocalDateTime updatedAt;
+
+    private User author;
+    // category and tags attributes with relations pending
 
 }
