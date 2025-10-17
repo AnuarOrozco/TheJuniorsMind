@@ -4,6 +4,9 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name = "tags")
 @Data
@@ -25,5 +28,8 @@ public class Tag {
 
     @Column(nullable = false)
     @NotBlank
-    private String color; // check if String is the correct data type
+    private String color;
+
+    @ManyToMany(mappedBy = "tags")
+    private List<Post> posts = new ArrayList<>();
 }
