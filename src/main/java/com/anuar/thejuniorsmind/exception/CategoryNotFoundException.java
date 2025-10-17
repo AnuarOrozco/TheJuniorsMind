@@ -3,11 +3,6 @@ package com.anuar.thejuniorsmind.exception;
 public class CategoryNotFoundException extends RuntimeException{
 
     public CategoryNotFoundException(Long id) {
-        super("Category not found with id: " + id);
+        super("Category with ID " + id + " not found");
     }
-
-    public CategoryNotFoundException(String message) {
-        super(message);
-    }
-
 }
