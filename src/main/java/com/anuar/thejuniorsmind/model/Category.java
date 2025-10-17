@@ -5,13 +5,13 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
 @Entity
-@Table(name = "tags")
+@Table(name = "categories")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class Tag {
+public class Category {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,7 +23,7 @@ public class Tag {
     @NotBlank
     private String name;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 255)
     @NotBlank
-    private String color; // check if String is the correct data type
+    private String iconUrl;
 }
