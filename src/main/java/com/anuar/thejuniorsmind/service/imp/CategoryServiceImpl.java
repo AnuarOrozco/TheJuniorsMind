@@ -6,12 +6,13 @@ import com.anuar.thejuniorsmind.exception.CategoryNotFoundException;
 import com.anuar.thejuniorsmind.model.Category;
 import com.anuar.thejuniorsmind.repository.CategoryRepository;
 import com.anuar.thejuniorsmind.service.CategoryService;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -22,12 +23,8 @@ public class CategoryServiceImpl implements CategoryService {
     private final ModelMapper modelMapper;
 
     @Override
-    public CategoryResponseDTO createCategory(CategoryRequestDTO request) {
-        Category category = Category.builder()
-                .name(request.name())
-                .iconUrl(request.iconUrl())
-                .build();
-
+    public CategoryResponseDTO createCategory(CategoryRequestDTO categoryRequest) {
+        Category category = modelMapper.map(categoryRequest, Category.class);
         Category saved = categoryRepository.save(category);
         return mapToResponseDTO(saved);
     }
@@ -35,7 +32,7 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     public CategoryResponseDTO getCategoryById(Long id) {
         Category category = categoryRepository.findById(id)
-                .orElseThrow(() -> new CategoryNotFoundException(id));
+                .orElseThrow(() -> new CategoryNotFoundException("Category not found with id: " + id));
         return mapToResponseDTO(category);
     }
 
@@ -44,16 +41,15 @@ public class CategoryServiceImpl implements CategoryService {
         return categoryRepository.findAll()
                 .stream()
                 .map(this::mapToResponseDTO)
-                .toList();
+                .collect(Collectors.toList());
     }
 
     @Override
-    public CategoryResponseDTO updateCategory(Long id, CategoryRequestDTO request) {
+    public CategoryResponseDTO updateCategory(Long id, CategoryRequestDTO categoryRequest) {
         Category category = categoryRepository.findById(id)
-                .orElseThrow(() -> new CategoryNotFoundException(id));
+                .orElseThrow(() -> new CategoryNotFoundException("Category not found with id: " + id));
 
-        category.setName(request.name());
-        category.setIconUrl(request.iconUrl());
+        modelMapper.map(categoryRequest, category);
 
         Category updated = categoryRepository.save(category);
         return mapToResponseDTO(updated);
@@ -61,13 +57,27 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     public void deleteCategory(Long id) {
-        if (!categoryRepository.existsById(id)) {
-            throw new CategoryNotFoundException(id);
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new CategoryNotFoundException("Category not found with id: " + id));
+
+        // Limpiar relación con posts antes de borrar (orphanRemoval ya maneja parte, pero por seguridad)
+        if (category.getPosts() != null) {
+            category.getPosts().forEach(post -> post.setCategory(null));
         }
-        categoryRepository.deleteById(id);
+
+        categoryRepository.delete(category);
     }
 
     private CategoryResponseDTO mapToResponseDTO(Category category) {
-        return modelMapper.map(category, CategoryResponseDTO.class);
+        List<Long> postIds = category.getPosts() != null
+                ? category.getPosts().stream().map(post -> post.getId()).collect(Collectors.toList())
+                : List.of();
+
+        return new CategoryResponseDTO(
+                category.getId(),
+                category.getName(),
+                category.getIconUrl(),
+                postIds
+        );
     }
 }
