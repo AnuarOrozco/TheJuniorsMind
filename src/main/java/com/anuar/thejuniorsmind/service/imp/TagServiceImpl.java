@@ -26,21 +26,21 @@ public class TagServiceImpl implements TagService {
     public TagResponseDTO createTag(TagRequestDTO tagRequest) {
         Tag tag = modelMapper.map(tagRequest, Tag.class);
         Tag saved = tagRepository.save(tag);
-        return modelMapper.map(saved, TagResponseDTO.class);
+        return mapToResponseDTO(saved);
     }
 
     @Override
     public TagResponseDTO getTagById(Long id) {
         Tag tag = tagRepository.findById(id)
                 .orElseThrow(() -> new TagNotFoundException("Tag not found with id: " + id));
-        return modelMapper.map(tag, TagResponseDTO.class);
+        return mapToResponseDTO(tag);
     }
 
     @Override
     public List<TagResponseDTO> getAllTags() {
-        return  tagRepository.findAll()
+        return tagRepository.findAll()
                 .stream()
-                .map(tag -> modelMapper.map(tag, TagResponseDTO.class))
+                .map(this::mapToResponseDTO)
                 .collect(Collectors.toList());
     }
 
@@ -49,16 +49,41 @@ public class TagServiceImpl implements TagService {
         Tag tag = tagRepository.findById(id)
                 .orElseThrow(() -> new TagNotFoundException("Tag not found with id: " + id));
 
-        modelMapper.map(tagRequest, tag);
+        modelMapper.map(tagRequest, tag); // actualizar campos básicos
+
+        // Si TagRequestDTO en un futuro tuviese postIds, aca van mapeados :):
+        // if (tagRequest.getPostIds() != null) {
+        //     List<Post> posts = postRepository.findAllById(tagRequest.getPostIds());
+        //     tag.setPosts(posts);
+        // }
+
         Tag updated = tagRepository.save(tag);
-        return modelMapper.map(updated, TagResponseDTO.class);
+        return mapToResponseDTO(updated);
     }
 
     @Override
     public void deleteTag(Long id) {
-        if (!tagRepository.existsById(id)) {
-            throw new TagNotFoundException("Tag not found with id: " + id);
+        Tag tag = tagRepository.findById(id)
+                .orElseThrow(() -> new TagNotFoundException("Tag not found with id: " + id));
+
+        if (tag.getPosts() != null) {
+            tag.getPosts().forEach(post -> post.getTags().remove(tag));
         }
-        tagRepository.deleteById(id);
+
+        tagRepository.delete(tag);
     }
+
+    private TagResponseDTO mapToResponseDTO(Tag tag) {
+        List<Long> postIds = tag.getPosts() != null
+                ? tag.getPosts().stream().map(post -> post.getId()).collect(Collectors.toList())
+                : List.of();
+
+        return new TagResponseDTO(
+                tag.getId(),
+                tag.getName(),
+                tag.getColor(),
+                postIds
+        );
+    }
+
 }
