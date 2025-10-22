@@ -1,22 +1,21 @@
 package com.anuar.thejuniorsmind.repository;
 
+import com.anuar.thejuniorsmind.config.TestConfig;
 import com.anuar.thejuniorsmind.model.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
-import org.springframework.test.context.ActiveProfiles;
+import org.springframework.context.annotation.Import;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Optional;
 
 @DataJpaTest
-@EntityScan(basePackages = "com.anuar.thejuniorsmind.model")
-@ActiveProfiles("test")
+@Import(TestConfig.class)
 public class UserRepositoryTest {
 
     @Autowired
