@@ -30,19 +30,15 @@ public class CategoryServiceImplTest {
     @Mock
     private CategoryRepository categoryRepository;
 
-    @Mock
     private ModelMapper modelMapper;
-
-    @InjectMocks
     private CategoryServiceImpl categoryService;
 
     private Category category;
     private CategoryRequestDTO requestDTO;
 
-    private ModelMapper modelMapper = new ModelMapper();
-
     @BeforeEach
     void setUp() {
+        modelMapper = new ModelMapper();
         categoryService = new CategoryServiceImpl(categoryRepository, modelMapper);
 
         requestDTO = new CategoryRequestDTO("Technology", "https://icon.png");
@@ -56,7 +52,6 @@ public class CategoryServiceImplTest {
     @Test
     @DisplayName("Should create a category successfully")
     void testCreateCategory() {
-        when(modelMapper.map(requestDTO, Category.class)).thenReturn(category);
         when(categoryRepository.save(any(Category.class))).thenReturn(category);
 
         CategoryResponseDTO response = categoryService.createCategory(requestDTO);
@@ -75,7 +70,7 @@ public class CategoryServiceImplTest {
 
         assertThat(response).isNotNull();
         assertThat(response.name()).isEqualTo("Technology");
-        verify(categoryRepository.findById(1L));
+        verify(categoryRepository).findById(1L);
     }
 
     @Test
