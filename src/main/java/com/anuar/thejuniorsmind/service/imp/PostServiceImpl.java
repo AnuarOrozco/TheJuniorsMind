@@ -5,6 +5,7 @@ import com.anuar.thejuniorsmind.dto.PostResponseDTO;
 import com.anuar.thejuniorsmind.exception.CategoryNotFoundException;
 import com.anuar.thejuniorsmind.exception.PostNotFoundException;
 import com.anuar.thejuniorsmind.exception.UserNotFoundException;
+import com.anuar.thejuniorsmind.mapper.PostMapper;
 import com.anuar.thejuniorsmind.model.Category;
 import com.anuar.thejuniorsmind.model.Post;
 import com.anuar.thejuniorsmind.model.Tag;
@@ -30,6 +31,7 @@ public class PostServiceImpl implements PostService {
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
     private final TagRepository tagRepository;
+    private final PostMapper postMapper;
 
     @Override
     public PostResponseDTO createPost(PostRequestDTO postRequest) {
@@ -38,33 +40,28 @@ public class PostServiceImpl implements PostService {
 
         Category category = categoryRepository.findById(postRequest.categoryId())
                 .orElseThrow(() -> new CategoryNotFoundException("Category not found with id: " + postRequest.categoryId()));
-        
+
         List<Tag> tags = tagRepository.findAllById(postRequest.tagIds());
-        
-        Post post = Post.builder()
-                .title(postRequest.title())
-                .content(postRequest.content())
-                .author(author)
-                .category(category)
-                .tags(tags)
-                .build();
-        
+
+        Post post = postMapper.toEntity(postRequest, author, category, tags);
         Post saved = postRepository.save(post);
-        return mapToResponseDTO(saved);
+
+        return postMapper.toResponseDTO(saved);
     }
 
     @Override
     public PostResponseDTO getPostById(Long id) {
         Post post = postRepository.findById(id)
                 .orElseThrow(() -> new PostNotFoundException(id));
-        return mapToResponseDTO(post);
+
+        return postMapper.toResponseDTO(post);
     }
 
     @Override
     public List<PostResponseDTO> getAllPosts() {
         return postRepository.findAll()
                 .stream()
-                .map(this::mapToResponseDTO)
+                .map(postMapper::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
@@ -84,13 +81,14 @@ public class PostServiceImpl implements PostService {
         post.setTags(tags);
 
         Post updated = postRepository.save(post);
-        return mapToResponseDTO(updated);
+        return postMapper.toResponseDTO(updated);
     }
 
     @Override
     public void deletePost(Long id) {
         Post post = postRepository.findById(id)
                 .orElseThrow(() -> new PostNotFoundException(id));
+
         postRepository.delete(post);
     }
 
@@ -98,7 +96,7 @@ public class PostServiceImpl implements PostService {
     public List<PostResponseDTO> getPostsByTitle(String title) {
         return postRepository.findByTitleContainingIgnoreCase(title)
                 .stream()
-                .map(this::mapToResponseDTO)
+                .map(postMapper::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
@@ -106,7 +104,7 @@ public class PostServiceImpl implements PostService {
     public List<PostResponseDTO> getPostsByCategory(Long categoryId) {
         return postRepository.findByCategoryId(categoryId)
                 .stream()
-                .map(this::mapToResponseDTO)
+                .map(postMapper::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
@@ -114,25 +112,7 @@ public class PostServiceImpl implements PostService {
     public List<PostResponseDTO> getPostsByTag(String tagName) {
         return postRepository.findByTagsName(tagName)
                 .stream()
-                .map(this::mapToResponseDTO)
+                .map(postMapper::toResponseDTO)
                 .collect(Collectors.toList());
-    }
-
-    private PostResponseDTO mapToResponseDTO(Post post) {
-        List<String> tagNames = post.getTags()
-                .stream()
-                .map(Tag::getName)
-                .collect(Collectors.toList());
-
-        return new PostResponseDTO(
-                post.getId(),
-                post.getTitle(),
-                post.getContent(),
-                post.getCreatedAt(),
-                post.getUpdatedAt(),
-                post.getAuthor().getId(),
-                post.getCategory().getId(),
-                tagNames
-        );
     }
 }

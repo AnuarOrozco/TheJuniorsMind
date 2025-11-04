@@ -3,6 +3,7 @@ package com.anuar.thejuniorsmind.service;
 import com.anuar.thejuniorsmind.dto.PostRequestDTO;
 import com.anuar.thejuniorsmind.dto.PostResponseDTO;
 import com.anuar.thejuniorsmind.exception.*;
+import com.anuar.thejuniorsmind.mapper.PostMapper;
 import com.anuar.thejuniorsmind.model.*;
 import com.anuar.thejuniorsmind.model.Tag;
 import com.anuar.thejuniorsmind.repository.*;
@@ -24,12 +25,18 @@ class PostServiceImplTest {
 
     @Mock
     private PostRepository postRepository;
+
     @Mock
     private UserRepository userRepository;
+
     @Mock
     private CategoryRepository categoryRepository;
+
     @Mock
     private TagRepository tagRepository;
+
+    @Spy
+    private PostMapper postMapper = new PostMapper();
 
     @InjectMocks
     private PostServiceImpl postService;
@@ -80,6 +87,8 @@ class PostServiceImplTest {
         assertThat(response).isNotNull();
         assertThat(response.title()).isEqualTo("My Post");
         verify(postRepository).save(any(Post.class));
+        verify(postMapper).toEntity(any(), any(), any(), any());
+        verify(postMapper).toResponseDTO(any());
     }
 
     @Test
@@ -88,6 +97,7 @@ class PostServiceImplTest {
         when(userRepository.findById(1L)).thenReturn(Optional.empty());
 
         assertThrows(UserNotFoundException.class, () -> postService.createPost(requestDTO));
+        verify(postMapper, never()).toEntity(any(), any(), any(), any());
     }
 
     // -------------------------------------------------------------
@@ -102,7 +112,7 @@ class PostServiceImplTest {
 
         assertThat(response).isNotNull();
         assertThat(response.title()).isEqualTo("My Post");
-        verify(postRepository).findById(1L);
+        verify(postMapper).toResponseDTO(post);
     }
 
     @Test
@@ -111,6 +121,7 @@ class PostServiceImplTest {
         when(postRepository.findById(1L)).thenReturn(Optional.empty());
 
         assertThrows(PostNotFoundException.class, () -> postService.getPostById(1L));
+        verify(postMapper, never()).toResponseDTO(any());
     }
 
     // -------------------------------------------------------------
@@ -129,6 +140,7 @@ class PostServiceImplTest {
         assertThat(response).isNotNull();
         assertThat(response.title()).isEqualTo("My Post");
         verify(postRepository).save(post);
+        verify(postMapper).toResponseDTO(post);
     }
 
     // -------------------------------------------------------------
@@ -164,6 +176,7 @@ class PostServiceImplTest {
 
         assertThat(responses).hasSize(1);
         verify(postRepository).findByTitleContainingIgnoreCase("My");
+        verify(postMapper).toResponseDTO(post);
     }
 
     @Test
@@ -175,6 +188,7 @@ class PostServiceImplTest {
 
         assertThat(responses).hasSize(1);
         verify(postRepository).findByCategoryId(1L);
+        verify(postMapper).toResponseDTO(post);
     }
 
     @Test
@@ -186,5 +200,6 @@ class PostServiceImplTest {
 
         assertThat(responses).hasSize(1);
         verify(postRepository).findByTagsName("Java");
+        verify(postMapper).toResponseDTO(post);
     }
 }
