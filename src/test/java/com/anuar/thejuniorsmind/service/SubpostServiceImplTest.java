@@ -3,6 +3,7 @@ package com.anuar.thejuniorsmind.service;
 import com.anuar.thejuniorsmind.dto.SubpostRequestDTO;
 import com.anuar.thejuniorsmind.dto.SubpostResponseDTO;
 import com.anuar.thejuniorsmind.exception.SubpostNotFoundException;
+import com.anuar.thejuniorsmind.mapper.SubpostMapper;
 import com.anuar.thejuniorsmind.model.Post;
 import com.anuar.thejuniorsmind.model.Subpost;
 import com.anuar.thejuniorsmind.model.User;
@@ -32,6 +33,8 @@ class SubpostServiceImplTest {
     @Mock
     private PostRepository postRepository;
 
+    private SubpostMapper subpostMapper;
+
     @InjectMocks
     private SubpostServiceImpl subpostService;
 
@@ -42,6 +45,11 @@ class SubpostServiceImplTest {
 
     @BeforeEach
     void setUp() {
+        subpostMapper = new SubpostMapper();
+
+        // Reinyectar el mapper en el servicio (ya que no se mockea)
+        subpostService = new SubpostServiceImpl(subpostRepository, userRepository, postRepository, subpostMapper);
+
         author = User.builder().id(1L).username("John").build();
         post = Post.builder().id(1L).title("My Post").build();
 
@@ -61,9 +69,6 @@ class SubpostServiceImplTest {
         );
     }
 
-    // -------------------------------------------------------------
-    // CREATE
-    // -------------------------------------------------------------
     @Test
     @DisplayName("Should create subpost successfully")
     void testCreateSubpostSuccessfully() {
@@ -75,12 +80,11 @@ class SubpostServiceImplTest {
 
         assertThat(response).isNotNull();
         assertThat(response.subtitle()).isEqualTo("Subpost Title");
+        assertThat(response.authorId()).isEqualTo(1L);
+        assertThat(response.postId()).isEqualTo(1L);
         verify(subpostRepository).save(any(Subpost.class));
     }
 
-    // -------------------------------------------------------------
-    // GET BY ID
-    // -------------------------------------------------------------
     @Test
     @DisplayName("Should get subpost by id successfully")
     void testGetSubpostByIdSuccessfully() {
@@ -101,9 +105,6 @@ class SubpostServiceImplTest {
         assertThrows(SubpostNotFoundException.class, () -> subpostService.getSubpostById(1L));
     }
 
-    // -------------------------------------------------------------
-    // GET ALL
-    // -------------------------------------------------------------
     @Test
     @DisplayName("Should get all subposts successfully")
     void testGetAllSubpostsSuccessfully() {
@@ -112,12 +113,10 @@ class SubpostServiceImplTest {
         List<SubpostResponseDTO> responses = subpostService.getAllSubposts();
 
         assertThat(responses).hasSize(1);
+        assertThat(responses.get(0).subtitle()).isEqualTo("Subpost Title");
         verify(subpostRepository).findAll();
     }
 
-    // -------------------------------------------------------------
-    // UPDATE
-    // -------------------------------------------------------------
     @Test
     @DisplayName("Should update subpost successfully")
     void testUpdateSubpostSuccessfully() {
@@ -139,9 +138,6 @@ class SubpostServiceImplTest {
         assertThrows(SubpostNotFoundException.class, () -> subpostService.updateSubpost(1L, requestDTO));
     }
 
-    // -------------------------------------------------------------
-    // DELETE
-    // -------------------------------------------------------------
     @Test
     @DisplayName("Should delete subpost successfully")
     void testDeleteSubpostSuccessfully() {
