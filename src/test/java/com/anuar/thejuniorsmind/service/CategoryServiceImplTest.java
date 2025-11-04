@@ -3,6 +3,7 @@ package com.anuar.thejuniorsmind.service;
 import com.anuar.thejuniorsmind.dto.CategoryRequestDTO;
 import com.anuar.thejuniorsmind.dto.CategoryResponseDTO;
 import com.anuar.thejuniorsmind.exception.CategoryNotFoundException;
+import com.anuar.thejuniorsmind.mapper.CategoryMapper;
 import com.anuar.thejuniorsmind.model.Category;
 import com.anuar.thejuniorsmind.repository.CategoryRepository;
 import com.anuar.thejuniorsmind.service.imp.CategoryServiceImpl;
@@ -10,27 +11,23 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.modelmapper.ModelMapper;
 
 import java.util.List;
 import java.util.Optional;
-
-import static org.mockito.Mockito.when;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class CategoryServiceImplTest {
+class CategoryServiceImplTest {
 
     @Mock
     private CategoryRepository categoryRepository;
 
-    private ModelMapper modelMapper;
+    private CategoryMapper categoryMapper;
     private CategoryServiceImpl categoryService;
 
     private Category category;
@@ -38,8 +35,8 @@ public class CategoryServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        modelMapper = new ModelMapper();
-        categoryService = new CategoryServiceImpl(categoryRepository, modelMapper);
+        categoryMapper = new CategoryMapper();
+        categoryService = new CategoryServiceImpl(categoryRepository, categoryMapper);
 
         requestDTO = new CategoryRequestDTO("Technology", "https://icon.png");
         category = Category.builder()
@@ -58,7 +55,10 @@ public class CategoryServiceImplTest {
 
         assertThat(response).isNotNull();
         assertThat(response.name()).isEqualTo("Technology");
+        assertThat(response.iconUrl()).isEqualTo("https://icon.png");
+
         verify(categoryRepository, times(1)).save(any(Category.class));
+        verifyNoMoreInteractions(categoryRepository);
     }
 
     @Test
@@ -70,7 +70,10 @@ public class CategoryServiceImplTest {
 
         assertThat(response).isNotNull();
         assertThat(response.name()).isEqualTo("Technology");
+        assertThat(response.iconUrl()).isEqualTo("https://icon.png");
+
         verify(categoryRepository).findById(1L);
+        verifyNoMoreInteractions(categoryRepository);
     }
 
     @Test
@@ -81,34 +84,39 @@ public class CategoryServiceImplTest {
         assertThatThrownBy(() -> categoryService.getCategoryById(1L))
                 .isInstanceOf(CategoryNotFoundException.class)
                 .hasMessageContaining("Category not found with id: 1");
+
+        verify(categoryRepository).findById(1L);
+        verifyNoMoreInteractions(categoryRepository);
     }
 
     @Test
-    @DisplayName("Should return all categories")
+    @DisplayName("Should return all categories successfully")
     void testGetAllCategories() {
         when(categoryRepository.findAll()).thenReturn(List.of(category));
 
         List<CategoryResponseDTO> result = categoryService.getAllCategories();
 
-        assertThat(result).hasSize(1);
+        assertThat(result).isNotNull().hasSize(1);
         assertThat(result.get(0).name()).isEqualTo("Technology");
+
         verify(categoryRepository).findAll();
+        verifyNoMoreInteractions(categoryRepository);
     }
 
     @Test
     @DisplayName("Should update a category successfully")
     void testUpdateCategory() {
-        // given
         when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
-        when(categoryRepository.save(category)).thenReturn(category);
+        when(categoryRepository.save(any(Category.class))).thenReturn(category);
 
-        // when
         CategoryResponseDTO response = categoryService.updateCategory(1L, requestDTO);
 
-        // then
         assertThat(response).isNotNull();
         assertThat(response.name()).isEqualTo("Technology");
+
+        verify(categoryRepository).findById(1L);
         verify(categoryRepository).save(category);
+        verifyNoMoreInteractions(categoryRepository);
     }
 
     @Test
@@ -119,6 +127,9 @@ public class CategoryServiceImplTest {
         assertThatThrownBy(() -> categoryService.updateCategory(1L, requestDTO))
                 .isInstanceOf(CategoryNotFoundException.class)
                 .hasMessageContaining("Category not found with id: 1");
+
+        verify(categoryRepository).findById(1L);
+        verifyNoMoreInteractions(categoryRepository);
     }
 
     @Test
@@ -129,7 +140,9 @@ public class CategoryServiceImplTest {
 
         categoryService.deleteCategory(1L);
 
+        verify(categoryRepository).findById(1L);
         verify(categoryRepository).delete(category);
+        verifyNoMoreInteractions(categoryRepository);
     }
 
     @Test
@@ -140,6 +153,8 @@ public class CategoryServiceImplTest {
         assertThatThrownBy(() -> categoryService.deleteCategory(1L))
                 .isInstanceOf(CategoryNotFoundException.class)
                 .hasMessageContaining("Category not found with id: 1");
-    }
 
+        verify(categoryRepository).findById(1L);
+        verifyNoMoreInteractions(categoryRepository);
+    }
 }
