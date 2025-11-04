@@ -3,12 +3,12 @@ package com.anuar.thejuniorsmind.service.imp;
 import com.anuar.thejuniorsmind.dto.TagRequestDTO;
 import com.anuar.thejuniorsmind.dto.TagResponseDTO;
 import com.anuar.thejuniorsmind.exception.TagNotFoundException;
+import com.anuar.thejuniorsmind.mapper.TagMapper;
 import com.anuar.thejuniorsmind.model.Tag;
 import com.anuar.thejuniorsmind.repository.TagRepository;
 import com.anuar.thejuniorsmind.service.TagService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -20,27 +20,27 @@ import java.util.stream.Collectors;
 public class TagServiceImpl implements TagService {
 
     private final TagRepository tagRepository;
-    private final ModelMapper modelMapper;
+    private final TagMapper tagMapper;
 
     @Override
     public TagResponseDTO createTag(TagRequestDTO tagRequest) {
-        Tag tag = modelMapper.map(tagRequest, Tag.class);
+        Tag tag = tagMapper.toEntity(tagRequest);
         Tag saved = tagRepository.save(tag);
-        return mapToResponseDTO(saved);
+        return tagMapper.toResponseDTO(saved);
     }
 
     @Override
     public TagResponseDTO getTagById(Long id) {
         Tag tag = tagRepository.findById(id)
                 .orElseThrow(() -> new TagNotFoundException("Tag not found with id: " + id));
-        return mapToResponseDTO(tag);
+        return tagMapper.toResponseDTO(tag);
     }
 
     @Override
     public List<TagResponseDTO> getAllTags() {
         return tagRepository.findAll()
                 .stream()
-                .map(this::mapToResponseDTO)
+                .map(tagMapper::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
@@ -49,16 +49,10 @@ public class TagServiceImpl implements TagService {
         Tag tag = tagRepository.findById(id)
                 .orElseThrow(() -> new TagNotFoundException("Tag not found with id: " + id));
 
-        modelMapper.map(tagRequest, tag); // actualizar campos básicos
-
-        // Si TagRequestDTO en un futuro tuviese postIds, aca van mapeados :):
-        // if (tagRequest.getPostIds() != null) {
-        //     List<Post> posts = postRepository.findAllById(tagRequest.getPostIds());
-        //     tag.setPosts(posts);
-        // }
+        tagMapper.updateEntityFromDTO(tagRequest, tag);
 
         Tag updated = tagRepository.save(tag);
-        return mapToResponseDTO(updated);
+        return tagMapper.toResponseDTO(updated);
     }
 
     @Override
@@ -66,24 +60,11 @@ public class TagServiceImpl implements TagService {
         Tag tag = tagRepository.findById(id)
                 .orElseThrow(() -> new TagNotFoundException("Tag not found with id: " + id));
 
+        // Desvincular el tag de sus posts antes de eliminar
         if (tag.getPosts() != null) {
             tag.getPosts().forEach(post -> post.getTags().remove(tag));
         }
 
         tagRepository.delete(tag);
     }
-
-    private TagResponseDTO mapToResponseDTO(Tag tag) {
-        List<Long> postIds = tag.getPosts() != null
-                ? tag.getPosts().stream().map(post -> post.getId()).collect(Collectors.toList())
-                : List.of();
-
-        return new TagResponseDTO(
-                tag.getId(),
-                tag.getName(),
-                tag.getColor(),
-                postIds
-        );
-    }
-
 }

@@ -3,6 +3,7 @@ package com.anuar.thejuniorsmind.service;
 import com.anuar.thejuniorsmind.dto.TagRequestDTO;
 import com.anuar.thejuniorsmind.dto.TagResponseDTO;
 import com.anuar.thejuniorsmind.exception.TagNotFoundException;
+import com.anuar.thejuniorsmind.mapper.TagMapper;
 import com.anuar.thejuniorsmind.model.Post;
 import com.anuar.thejuniorsmind.model.Tag;
 import com.anuar.thejuniorsmind.repository.TagRepository;
@@ -11,7 +12,6 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.modelmapper.ModelMapper;
 
 import java.util.List;
 import java.util.Optional;
@@ -27,13 +27,14 @@ class TagServiceImplTest {
     private TagRepository tagRepository;
 
     @Mock
-    private ModelMapper modelMapper;
+    private TagMapper tagMapper;
 
     @InjectMocks
     private TagServiceImpl tagService;
 
     private Tag tag;
     private TagRequestDTO requestDTO;
+    private TagResponseDTO responseDTO;
 
     @BeforeEach
     void setUp() {
@@ -44,16 +45,15 @@ class TagServiceImplTest {
                 .build();
 
         requestDTO = new TagRequestDTO("Tech", "#FF0000");
+        responseDTO = new TagResponseDTO(1L, "Tech", "#FF0000", List.of());
     }
 
-    // -------------------------------------------------------------
-    // CREATE
-    // -------------------------------------------------------------
     @Test
     @DisplayName("Should create tag successfully")
     void testCreateTagSuccessfully() {
-        when(modelMapper.map(requestDTO, Tag.class)).thenReturn(tag);
+        when(tagMapper.toEntity(requestDTO)).thenReturn(tag);
         when(tagRepository.save(tag)).thenReturn(tag);
+        when(tagMapper.toResponseDTO(tag)).thenReturn(responseDTO);
 
         TagResponseDTO response = tagService.createTag(requestDTO);
 
@@ -62,13 +62,11 @@ class TagServiceImplTest {
         verify(tagRepository).save(tag);
     }
 
-    // -------------------------------------------------------------
-    // GET BY ID
-    // -------------------------------------------------------------
     @Test
     @DisplayName("Should get tag by id successfully")
     void testGetTagByIdSuccessfully() {
         when(tagRepository.findById(1L)).thenReturn(Optional.of(tag));
+        when(tagMapper.toResponseDTO(tag)).thenReturn(responseDTO);
 
         TagResponseDTO response = tagService.getTagById(1L);
 
@@ -85,13 +83,11 @@ class TagServiceImplTest {
         assertThrows(TagNotFoundException.class, () -> tagService.getTagById(1L));
     }
 
-    // -------------------------------------------------------------
-    // GET ALL
-    // -------------------------------------------------------------
     @Test
     @DisplayName("Should get all tags successfully")
     void testGetAllTagsSuccessfully() {
         when(tagRepository.findAll()).thenReturn(List.of(tag));
+        when(tagMapper.toResponseDTO(tag)).thenReturn(responseDTO);
 
         List<TagResponseDTO> responses = tagService.getAllTags();
 
@@ -99,15 +95,19 @@ class TagServiceImplTest {
         verify(tagRepository).findAll();
     }
 
-    // -------------------------------------------------------------
-    // UPDATE
-    // -------------------------------------------------------------
     @Test
     @DisplayName("Should update tag successfully")
     void testUpdateTagSuccessfully() {
         when(tagRepository.findById(1L)).thenReturn(Optional.of(tag));
-        doNothing().when(modelMapper).map(requestDTO, tag);
+        doAnswer(invocation -> {
+            TagRequestDTO dto = invocation.getArgument(0);
+            Tag entity = invocation.getArgument(1);
+            entity.setName(dto.name());
+            entity.setColor(dto.color());
+            return null;
+        }).when(tagMapper).updateEntityFromDTO(requestDTO, tag);
         when(tagRepository.save(tag)).thenReturn(tag);
+        when(tagMapper.toResponseDTO(tag)).thenReturn(responseDTO);
 
         TagResponseDTO response = tagService.updateTag(1L, requestDTO);
 
@@ -124,15 +124,12 @@ class TagServiceImplTest {
         assertThrows(TagNotFoundException.class, () -> tagService.updateTag(1L, requestDTO));
     }
 
-    // -------------------------------------------------------------
-    // DELETE
-    // -------------------------------------------------------------
     @Test
     @DisplayName("Should delete tag successfully")
     void testDeleteTagSuccessfully() {
         Post post = Post.builder().id(1L).build();
         tag.setPosts(List.of(post));
-        post.setTags(new java.util.ArrayList<>(List.of(tag))); // thisss is mutable list
+        post.setTags(new java.util.ArrayList<>(List.of(tag)));
 
         when(tagRepository.findById(1L)).thenReturn(Optional.of(tag));
 
