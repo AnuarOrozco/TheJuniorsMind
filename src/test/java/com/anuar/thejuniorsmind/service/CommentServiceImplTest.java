@@ -3,6 +3,7 @@ package com.anuar.thejuniorsmind.service;
 import com.anuar.thejuniorsmind.dto.CommentRequestDTO;
 import com.anuar.thejuniorsmind.dto.CommentResponseDTO;
 import com.anuar.thejuniorsmind.exception.CommentNotFoundException;
+import com.anuar.thejuniorsmind.mapper.CommentMapper;
 import com.anuar.thejuniorsmind.model.Comment;
 import com.anuar.thejuniorsmind.model.Post;
 import com.anuar.thejuniorsmind.model.User;
@@ -37,6 +38,9 @@ class CommentServiceImplTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private CommentMapper commentMapper;
+
     @InjectMocks
     private CommentServiceImpl commentService;
 
@@ -44,6 +48,7 @@ class CommentServiceImplTest {
     private Post post;
     private Comment comment;
     private CommentRequestDTO request;
+    private CommentResponseDTO responseDTO;
 
     @BeforeEach
     void setUp() {
@@ -66,6 +71,16 @@ class CommentServiceImplTest {
                 .build();
 
         request = new CommentRequestDTO("Great post!", 1L, 1L, null);
+
+        responseDTO = new CommentResponseDTO(
+                1L,
+                "Great post!",
+                comment.getCreatedAt(),
+                1L,
+                1L,
+                null,
+                List.of()
+        );
     }
 
     @Test
@@ -73,7 +88,9 @@ class CommentServiceImplTest {
     void testCreateCommentSuccessfully() {
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(postRepository.findById(1L)).thenReturn(Optional.of(post));
-        when(commentRepository.save(any(Comment.class))).thenReturn(comment);
+        when(commentMapper.toEntity(request, user, post, null)).thenReturn(comment);
+        when(commentRepository.save(comment)).thenReturn(comment);
+        when(commentMapper.toResponseDTO(comment)).thenReturn(responseDTO);
 
         CommentResponseDTO response = commentService.createComment(request);
 
@@ -82,7 +99,9 @@ class CommentServiceImplTest {
         assertThat(response.authorId()).isEqualTo(1L);
         assertThat(response.postId()).isEqualTo(1L);
 
-        verify(commentRepository).save(any(Comment.class));
+        verify(commentMapper).toEntity(request, user, post, null);
+        verify(commentRepository).save(comment);
+        verify(commentMapper).toResponseDTO(comment);
     }
 
     @Test
@@ -96,12 +115,14 @@ class CommentServiceImplTest {
                 .hasMessageContaining("Post not found");
 
         verify(commentRepository, never()).save(any());
+        verify(commentMapper, never()).toEntity(any(), any(), any(), any());
     }
 
     @Test
     @DisplayName("Should get a comment by ID successfully")
     void testGetCommentByIdSuccessfully() {
         when(commentRepository.findById(1L)).thenReturn(Optional.of(comment));
+        when(commentMapper.toResponseDTO(comment)).thenReturn(responseDTO);
 
         CommentResponseDTO response = commentService.getCommentById(1L);
 
@@ -109,6 +130,8 @@ class CommentServiceImplTest {
         assertThat(response.id()).isEqualTo(1L);
         assertThat(response.content()).isEqualTo("Great post!");
         assertThat(response.authorId()).isEqualTo(1L);
+
+        verify(commentMapper).toResponseDTO(comment);
     }
 
     @Test
@@ -121,6 +144,7 @@ class CommentServiceImplTest {
                 .hasMessageContaining("Comment not found");
 
         verify(commentRepository).findById(1L);
+        verify(commentMapper, never()).toResponseDTO(any());
     }
 
     @Test
@@ -129,12 +153,16 @@ class CommentServiceImplTest {
         CommentRequestDTO updateRequest = new CommentRequestDTO("Updated content", 1L, 1L, null);
 
         when(commentRepository.findById(1L)).thenReturn(Optional.of(comment));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(postRepository.findById(1L)).thenReturn(Optional.of(post));
         when(commentRepository.save(any(Comment.class))).thenReturn(comment);
+        when(commentMapper.toResponseDTO(comment)).thenReturn(responseDTO);
 
         CommentResponseDTO response = commentService.updateComment(1L, updateRequest);
 
         assertThat(response).isNotNull();
-        verify(commentRepository).save(any(Comment.class));
+        verify(commentMapper).updateEntityFromDTO(comment, updateRequest, user, post, null);
+        verify(commentRepository).save(comment);
     }
 
     @Test
@@ -149,7 +177,6 @@ class CommentServiceImplTest {
                 .build();
 
         comment.setReplies(List.of(reply));
-
         when(commentRepository.findById(1L)).thenReturn(Optional.of(comment));
 
         commentService.deleteComment(1L);

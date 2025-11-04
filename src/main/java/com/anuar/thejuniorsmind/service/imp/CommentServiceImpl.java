@@ -3,6 +3,7 @@ package com.anuar.thejuniorsmind.service.imp;
 import com.anuar.thejuniorsmind.dto.CommentRequestDTO;
 import com.anuar.thejuniorsmind.dto.CommentResponseDTO;
 import com.anuar.thejuniorsmind.exception.CommentNotFoundException;
+import com.anuar.thejuniorsmind.mapper.CommentMapper;
 import com.anuar.thejuniorsmind.model.Comment;
 import com.anuar.thejuniorsmind.model.Post;
 import com.anuar.thejuniorsmind.model.User;
@@ -12,11 +13,9 @@ import com.anuar.thejuniorsmind.repository.UserRepository;
 import com.anuar.thejuniorsmind.service.CommentService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -26,75 +25,62 @@ public class CommentServiceImpl implements CommentService {
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
     private final UserRepository userRepository;
-    private final ModelMapper modelMapper;
+    private final CommentMapper commentMapper;
 
     @Override
-    public CommentResponseDTO createComment(CommentRequestDTO commentRequest) {
-        Comment comment = new Comment();
-        comment.setContent(commentRequest.content());
+    public CommentResponseDTO createComment(CommentRequestDTO dto) {
+        User author = userRepository.findById(dto.authorId())
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + dto.authorId()));
 
-        User author = userRepository.findById(commentRequest.authorId())
-                .orElseThrow(() -> new RuntimeException("User not found with id: " + commentRequest.authorId()));
-        comment.setAuthor(author);
+        Post post = postRepository.findById(dto.postId())
+                .orElseThrow(() -> new RuntimeException("Post not found with id: " + dto.postId()));
 
-        Post post = postRepository.findById(commentRequest.postId())
-                .orElseThrow(() -> new RuntimeException("Post not found with id: " + commentRequest.postId()));
-        comment.setPost(post);
-
-        if (commentRequest.parentCommentId() != null) {
-            Comment parent = commentRepository.findById(commentRequest.parentCommentId())
-                    .orElseThrow(() -> new RuntimeException("Parent comment not found with id: " + commentRequest.parentCommentId()));
-            comment.setParentComment(parent);
+        Comment parent = null;
+        if (dto.parentCommentId() != null) {
+            parent = commentRepository.findById(dto.parentCommentId())
+                    .orElseThrow(() -> new RuntimeException("Parent comment not found with id: " + dto.parentCommentId()));
         }
 
+        Comment comment = commentMapper.toEntity(dto, author, post, parent);
         Comment saved = commentRepository.save(comment);
-        return mapToResponseDTO(saved);
+
+        return commentMapper.toResponseDTO(saved);
     }
 
     @Override
     public CommentResponseDTO getCommentById(Long id) {
         Comment comment = commentRepository.findById(id)
                 .orElseThrow(() -> new CommentNotFoundException("Comment not found with id: " + id));
-        return mapToResponseDTO(comment);
+        return commentMapper.toResponseDTO(comment);
     }
 
     @Override
     public List<CommentResponseDTO> getAllComments() {
-        return commentRepository.findAll()
-                .stream()
-                .map(this::mapToResponseDTO)
-                .collect(Collectors.toList());
+        List<Comment> comments = commentRepository.findAll();
+        return commentMapper.toResponseList(comments);
     }
 
     @Override
-    public CommentResponseDTO updateComment(Long id, CommentRequestDTO commentRequest) {
+    public CommentResponseDTO updateComment(Long id, CommentRequestDTO dto) {
         Comment comment = commentRepository.findById(id)
                 .orElseThrow(() -> new CommentNotFoundException("Comment not found with id: " + id));
 
-        comment.setContent(commentRequest.content());
+        User author = userRepository.findById(dto.authorId())
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + dto.authorId()));
 
-        if (commentRequest.authorId() != null && !comment.getAuthor().getId().equals(commentRequest.authorId())) {
-            User author = userRepository.findById(commentRequest.authorId())
-                    .orElseThrow(() -> new RuntimeException("User not found with id: " + commentRequest.authorId()));
-            comment.setAuthor(author);
+        Post post = postRepository.findById(dto.postId())
+                .orElseThrow(() -> new RuntimeException("Post not found with id: " + dto.postId()));
+
+        Comment parent = null;
+        if (dto.parentCommentId() != null) {
+            parent = commentRepository.findById(dto.parentCommentId())
+                    .orElseThrow(() -> new RuntimeException("Parent comment not found with id: " + dto.parentCommentId()));
         }
 
-        if (commentRequest.postId() != null && !comment.getPost().getId().equals(commentRequest.postId())) {
-            Post post = postRepository.findById(commentRequest.postId())
-                    .orElseThrow(() -> new RuntimeException("Post not found with id: " + commentRequest.postId()));
-            comment.setPost(post);
-        }
-
-        if (commentRequest.parentCommentId() != null) {
-            Comment parent = commentRepository.findById(commentRequest.parentCommentId())
-                    .orElseThrow(() -> new RuntimeException("Parent comment not found with id: " + commentRequest.parentCommentId()));
-            comment.setParentComment(parent);
-        } else {
-            comment.setParentComment(null);
-        }
-
+        commentMapper.updateEntityFromDTO(comment, dto, author, post, parent);
         Comment updated = commentRepository.save(comment);
-        return mapToResponseDTO(updated);
+
+        return commentMapper.toResponseDTO(updated);
     }
 
     @Override
@@ -107,21 +93,5 @@ public class CommentServiceImpl implements CommentService {
         }
 
         commentRepository.delete(comment);
-    }
-
-    private CommentResponseDTO mapToResponseDTO(Comment comment) {
-        List<Long> replyIds = comment.getReplies() != null
-                ? comment.getReplies().stream().map(Comment::getId).collect(Collectors.toList())
-                : List.of();
-
-        return new CommentResponseDTO(
-                comment.getId(),
-                comment.getContent(),
-                comment.getCreatedAt(),
-                comment.getAuthor().getId(),
-                comment.getPost().getId(),
-                comment.getParentComment() != null ? comment.getParentComment().getId() : null,
-                replyIds
-        );
     }
 }
