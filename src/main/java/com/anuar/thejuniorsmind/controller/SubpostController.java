@@ -22,7 +22,7 @@ public class SubpostController {
     public ResponseEntity<SubpostResponseDTO> createSubpost(@Valid @RequestBody SubpostRequestDTO request) {
         SubpostResponseDTO created = subpostService.createSubpost(request);
 
-        return ResponseEntity.created(URI.create("/api/subposts/")).body(created);
+        return ResponseEntity.created(URI.create("/api/subposts/" + created.id())).body(created);
     }
 
     @GetMapping("/{id}")
