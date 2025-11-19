@@ -82,117 +82,140 @@
   </style>
 </head>
 <body>
-  <header>
-    <h1>The Juniors Mind</h1>
-    <p>El espacio donde los desarrolladores crecen, comparten y aprenden juntos.</p>
-    <div class="mb-3">
-      <a href="login.html" class="btn btn-dark rounded-pill mx-1">Iniciar Sesión</a>
-      <a href="register.html" class="btn btn-outline-dark rounded-pill mx-1">Crear Cuenta</a>
-    </div>
-  </header>
-
-  <!-- Barra de búsqueda y filtro -->
-  <div class="search-bar">
-    <input type="text" id="searchInput" placeholder="Buscar publicaciones...">
-    <select id="categoryFilter">
-      <option value="">Todas las categorías</option>
-      <option value="Spring">Spring</option>
-      <option value="Frontend">Frontend</option>
-      <option value="Bases de Datos">Bases de Datos</option>
-    </select>
+<header>
+  <h1>The Juniors Mind</h1>
+  <p>El espacio donde los desarrolladores crecen, comparten y aprenden juntos.</p>
+  <div class="mb-3">
+    <a href="login.html" class="btn btn-dark rounded-pill mx-1">Iniciar Sesión</a>
+    <a href="register.html" class="btn btn-outline-dark rounded-pill mx-1">Crear Cuenta</a>
   </div>
+</header>
 
-  <!-- Contenedor de posts -->
-  <main id="postsContainer" class="w-100 d-flex flex-column align-items-center">
-    <!-- Los posts se insertan dinámicamente -->
-  </main>
+<!-- Barra de búsqueda y filtro -->
+<div class="search-bar">
+  <input type="text" id="searchInput" placeholder="Buscar publicaciones...">
+  <select id="categoryFilter">
+    <option value="">Todas las categorías</option>
+  </select>
+</div>
 
-  <footer>
-    © 2025 The Juniors Mind — Creado por desarrolladores, para desarrolladores.
-  </footer>
+<!-- Contenedor de posts -->
+<main id="postsContainer" class="w-100 d-flex flex-column align-items-center">
+  <!-- Los posts se insertan dinámicamente -->
+</main>
 
-  <script>
-    // Simulación de posts
-    const posts = [
-      {
-        titulo: "Introducción a Spring Boot",
-        autor: "Anuar",
-        fecha: "3 Nov 2025",
-        categoria: "Spring",
-        descripcion: "Spring Boot simplifica el desarrollo de aplicaciones Java, ayudando a crear proyectos robustos rápidamente."
-      },
-      {
-        titulo: "Guía básica de HTML y CSS",
-        autor: "Carlos",
-        fecha: "29 Oct 2025",
-        categoria: "Frontend",
-        descripcion: "Comienza desde cero con HTML y CSS para construir interfaces limpias y modernas."
-      },
-      {
-        titulo: "Conceptos de Inyección de Dependencias",
-        autor: "Alejandro",
-        fecha: "1 Nov 2025",
-        categoria: "Spring",
-        descripcion: "Aprende cómo Spring maneja los beans y la inyección de dependencias para lograr una arquitectura mantenible."
-      },
-      {
-        titulo: "Modelado de datos con MySQL",
-        autor: "Paola",
-        fecha: "28 Oct 2025",
-        categoria: "Bases de Datos",
-        descripcion: "Buenas prácticas para modelar bases de datos eficientes y escalables con MySQL."
-      }
-    ];
+<footer>
+  © 2025 The Juniors Mind — Creado por desarrolladores, para desarrolladores.
+</footer>
 
-    const postsContainer = document.getElementById("postsContainer");
-    const searchInput = document.getElementById("searchInput");
-    const categoryFilter = document.getElementById("categoryFilter");
+<script>
+  const postsContainer = document.getElementById("postsContainer");
+  const searchInput = document.getElementById("searchInput");
+  const categoryFilter = document.getElementById("categoryFilter");
+  let posts = [];
 
-    // Renderizado de posts
-    function renderPosts(filteredPosts) {
-      postsContainer.innerHTML = "";
-      if (filteredPosts.length === 0) {
-        postsContainer.innerHTML = "<p class='text-muted mt-4'>No se encontraron publicaciones.</p>";
-        return;
-      }
+  // 🔹 Cargar posts desde el backend
+  async function loadPosts() {
+    try {
+      const response = await fetch("http://localhost:8080/api/posts");
+      posts = await response.json();
 
-      filteredPosts.forEach(post => {
-        const card = document.createElement("div");
-        card.classList.add("post-card");
-        card.innerHTML = `
-          <h4>${post.titulo}</h4>
-          <p class="text-muted mb-1">Publicado por <strong>${post.autor}</strong> — ${post.fecha}</p>
-          <span class="badge mb-2">${post.categoria}</span>
-          <p>${post.descripcion}</p>
-          <a href="#" class="btn btn-sm btn-outline-dark rounded-pill">Leer más</a>
-        `;
-        postsContainer.appendChild(card);
+      // Para cada post, obtener autor y categoría dinámicamente
+      const enrichedPosts = await Promise.all(
+        posts.map(async post => {
+          try {
+            const [author, category] = await Promise.all([
+              fetch(`http://localhost:8080/api/users/${post.authorId}`).then(res => res.ok ? res.json() : null),
+              fetch(`http://localhost:8080/api/categories/${post.categoryId}`).then(res => res.ok ? res.json() : null)
+            ]);
+            return { ...post, author, category };
+          } catch {
+            return post; // fallback si falla alguna petición
+          }
+        })
+      );
+
+      posts = enrichedPosts;
+      renderPosts(posts);
+    } catch (error) {
+      console.error("❌ Error al cargar los posts:", error);
+      postsContainer.innerHTML = "<p class='text-danger'>No se pudieron cargar las publicaciones.</p>";
+    }
+  }
+
+  // 🔹 Cargar categorías para el filtro
+  async function loadCategories() {
+    try {
+      const response = await fetch("http://localhost:8080/api/categories");
+      if (!response.ok) throw new Error("Error HTTP");
+      const categorias = await response.json();
+
+      categoryFilter.innerHTML = `<option value="">Todas las categorías</option>`;
+      categorias.forEach(cat => {
+        const option = document.createElement("option");
+        option.value = cat.id;
+        option.textContent = cat.name;
+        categoryFilter.appendChild(option);
       });
+    } catch (error) {
+      console.error("❌ Error al cargar categorías:", error);
+    }
+  }
+
+  // 🔹 Renderizar posts
+  function renderPosts(filteredPosts) {
+    postsContainer.innerHTML = "";
+    if (filteredPosts.length === 0) {
+      postsContainer.innerHTML = "<p class='text-muted mt-4'>No se encontraron publicaciones.</p>";
+      return;
     }
 
-    // Filtrado dinámico
-    function filterPosts() {
-      const searchTerm = searchInput.value.toLowerCase();
-      const category = categoryFilter.value;
+    filteredPosts.forEach(post => {
+      const card = document.createElement("div");
+      card.classList.add("post-card");
 
-      const filtered = posts.filter(post => {
-        const matchesSearch =
-          post.titulo.toLowerCase().includes(searchTerm) ||
-          post.descripcion.toLowerCase().includes(searchTerm) ||
-          post.autor.toLowerCase().includes(searchTerm);
-        const matchesCategory = !category || post.categoria === category;
-        return matchesSearch && matchesCategory;
-      });
+      const authorName = post.author?.username || "Desconocido";
+      const categoryName = post.category?.name || "Sin categoría";
+      const formattedDate = post.createdAt ? new Date(post.createdAt).toLocaleDateString() : "Fecha desconocida";
 
-      renderPosts(filtered);
-    }
+      card.innerHTML = `
+        <h4>${post.title}</h4>
+        <p class="text-muted mb-1">
+          Publicado por <strong>${authorName}</strong> — ${formattedDate}
+        </p>
+        <span class="badge mb-2">${categoryName}</span>
+        <p>${post.content}</p>
+        <a href="detalle.html?id=${post.id}" class="btn btn-sm btn-outline-dark rounded-pill">Leer más</a>
+      `;
+      postsContainer.appendChild(card);
+    });
+  }
 
-    // Eventos
-    searchInput.addEventListener("input", filterPosts);
-    categoryFilter.addEventListener("change", filterPosts);
+  // 🔹 Filtrar posts
+  function filterPosts() {
+    const searchTerm = searchInput.value.toLowerCase();
+    const category = categoryFilter.value;
 
-    // Inicialización
-    renderPosts(posts);
-  </script>
+    const filtered = posts.filter(post => {
+      const matchesSearch =
+        post.title.toLowerCase().includes(searchTerm) ||
+        post.content.toLowerCase().includes(searchTerm) ||
+        post.author?.username?.toLowerCase().includes(searchTerm);
+      const matchesCategory = !category || post.category?.id == category;
+      return matchesSearch && matchesCategory;
+    });
+
+    renderPosts(filtered);
+  }
+
+  // 🔹 Eventos
+  searchInput.addEventListener("input", filterPosts);
+  categoryFilter.addEventListener("change", filterPosts);
+
+  // 🔹 Inicialización
+  loadCategories();
+  loadPosts();
+</script>
+
 </body>
 </html>
