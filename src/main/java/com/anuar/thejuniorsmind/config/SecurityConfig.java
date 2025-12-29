@@ -23,6 +23,7 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable()) // Temporal para pruebas del backend
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/auth/login").permitAll()
                         .requestMatchers("/api/users").permitAll()      // permitir POST register
                         .requestMatchers("/api/users/**").permitAll()   // permitir GETs mientras pruebas
                         .anyRequest().authenticated()
